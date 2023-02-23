@@ -1,0 +1,2 @@
+#define PIN D2
+#define MQTT_BROKER_ADDR "192.168.2.6"
