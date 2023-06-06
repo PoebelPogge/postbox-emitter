@@ -13,24 +13,18 @@ MQTTClient mqttClient;
 int inputValue = 0;
 
 bool emitted = false;
-bool transmitted = false;
 
 //function declarations
+void connectWiFi();
 void connectMQTT();
 void publishValue(bool emitted);
 void messageReceived(String &topic, String &payload);
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, password); // begin WiFi connection
-    // Wait for connection
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-
   pinMode(PIN, INPUT);
+
+  connectWiFi();
 
   Serial.println("");
   Serial.print("Connected to ");
@@ -55,25 +49,20 @@ void loop() {
     Serial.println("Lost connection to MQTT broker, reconnecting...");
     connectMQTT();
   }
+  Serial.print("\nMeasurment ...");
+  emitted = digitalRead(PIN);
 
-  inputValue = digitalRead(PIN);
-  if(inputValue == HIGH){
-    emitted = true;
+  if(emitted){
     Serial.print("\nAccident Detected");
-  }
-
-  if(emitted && !transmitted){
     publishValue(emitted);
     Serial.print("\nData Transmitted");
-    transmitted = true;
+    emitted = false;
   }
-
-  Serial.print("\nMeasurment ...");
-  Serial.print("\n-> Value: " + String(inputValue) + " emitted: " + String(emitted) + " transmitted: " + String(transmitted));
-  delay(100);
-  emitted = false;
+  delay(500);
 }
 
+
+//Establish MQTT Connection
 void connectMQTT(){
   while (!mqttClient.connect("post-box-emitter", MQTT_USER_NAME, MQTT_USER_PW))
   {
@@ -87,6 +76,17 @@ void connectMQTT(){
   mqttClient.subscribe("post-box-emitter/emitted");
 }
 
+void connectWiFi(){
+  WiFi.begin(ssid, password); // begin WiFi connection
+    // Wait for connection
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+}
+
+// publish mqtt value to broker
 void publishValue(bool emitted){
 
   Serial.print("\nCurrent emitter value: ");
@@ -94,9 +94,9 @@ void publishValue(bool emitted){
   mqttClient.publish("post-box-emitter/emitted", emitted ? "ON" : "OFF");
 }
 
+// receive message from broker
 void messageReceived(String &topic, String &payload) {
   if(payload == "OFF"){
-    transmitted = false;
     emitted = false;
     Serial.print("\nRESET!!!");
   }
